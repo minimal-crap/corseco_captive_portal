@@ -49,6 +49,8 @@ class ClientIPHandler(RequestHandler):
         current_otp = otp_db_handler_instance.get_client_data()
         if current_otp == received_otp:
             whitelist_ip(self.request.remote_ip)
+            otp_db_handler_instance.delete_client_data()
+            secret_key_db_handler_instance.delete_client_data()
             self.redirect("https://www.google.co.in")
 
 
@@ -207,7 +209,7 @@ def main():
     app_instance = MainApplication()
     port = 8000
     print("[*]starting app at {}".format(port))
-    app_instance.listen(port, address="192.168.1.154")
+    app_instance.listen(port, address="192.168.42.1")
     IOLoop.instance().start()
 
 

@@ -1,4 +1,4 @@
-var domain_variable = "192.168.1.154";
+var domain_variable = "192.168.42.1";
 var web_socket_url = "ws://"+ domain_variable +":8000/client_push_server/";
 
 $(document).ready(function(){
