@@ -1,4 +1,4 @@
-var domain_variable = "192.168.42.1";
+var domain_variable = "localhost";
 var web_socket_url = "ws://"+ domain_variable +":8000/client_push_server/";
 
 $(document).ready(function(){
@@ -19,50 +19,23 @@ $(document).ready(function(){
         }
     });
 
-//    $('#' + number_input_id).click(function(){
-//        try{
-//            var ajax_data = {};
-//            var ajax_data["number"] = $('#'+number_input_id).val();
-//            var sms_api_url = "http://" + domain_variable + ":8000/send_sms/";
-//            $.ajax({
-//                type:'POST',
-//		        url: sms_api_url,
-//		        data:JSON.stringify(ajax_data),
-//		        dataType:'text'
-//                }).done(function(){
-//                    $("#user-area").empty();
-//                    //form creation logic goes here
-//                    console.log("message sent successfully!");
-//                });
-//        }
-//        catch(err){
-//            alert("number-input-button::click: " + err.message);
-//        }
-//    });
-
     websocket_instance.onmessage = function(event){
         console.log(event.data);
         var data_obj = JSON.parse(event.data);
-        $("#user-area").empty();
-        var new_message_div = document.createElement("div");
+        
         if("error" in data_obj){
-                $(new_message_div).text(data_obj["error"]);
+                alert(data_obj["error"]);
             }
             else if("success" in data_obj){
-                $(new_message_div).text(data_obj["success"]);
+                console.log(data_obj["success"]);
             }
             else if("number_input_hook" in data_obj){
+                $("#landing-page-container").css("display","none");
+                $("#otp-page-container").css("display","block");
 
-                var input_element = document.createElement("input");
-                var submit_button_element = document.createElement("button");
-                $(input_element).attr("id", number_input_id);
-                $(input_element).attr("placeholder", "input your number");
-                $(submit_button_element).attr("id", number_input_button_id);
-                $(submit_button_element).text("submit");
-                $("#user-area").append(input_element);
-                $("#user-area").append(submit_button_element);
-                $("#"+ number_input_button_id).click(function(){
-                    var ajax_data = {"number":$("#number-input").val()};
+                $("#number-input-button").click(function(){
+
+                    var ajax_data = {"number":"+91" + $("#number-input").val()};
                     console.log(ajax_data);
                     var sms_api_url = "http://" + domain_variable + ":8000/send_sms/";
                     $.ajax({
@@ -95,6 +68,8 @@ $(document).ready(function(){
                         $(otp_form_element).append(otp_submit_element);
 
                         $("#user-area").append(otp_form_element);
+                    }).error(function(){
+                        console.log("testing error");
                     });
                 });
             }

@@ -92,7 +92,7 @@ def send_to_clients(message):
 
 class PortalIndex(RequestHandler):
     def get(self):
-        self.render("./templates/index.html")
+        self.render("./templates/home.html")
 
 
 class SMSHandler(RequestHandler):
@@ -209,7 +209,7 @@ def main():
     app_instance = MainApplication()
     port = 8000
     print("[*]starting app at {}".format(port))
-    app_instance.listen(port, address="192.168.42.1")
+    app_instance.listen(port)
     IOLoop.instance().start()
 
 
