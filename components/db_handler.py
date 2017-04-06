@@ -3,7 +3,7 @@ import sqlite3
 
 class DBHandler:
     def __init__(self, table_name=None, column_name=None):
-        self.db_path = "./socket_client.db"
+        self.db_path = "/home/pi/corseco_captive_portal/components/socket_client.db"
 
         if table_name is not None:
             self.table_name = table_name

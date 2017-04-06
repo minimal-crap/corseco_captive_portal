@@ -198,9 +198,7 @@ class MainApplication(Application):
             (r"/send_sms/", SMSHandler),
             (r"/allow_internet/", ClientIPHandler),
             (r"/static/(.*)", StaticFileHandler,
-             {"path": os.path.join(os.curdir,
-                                   "templates",
-                                   "assets")})
+             {"path": "/home/pi/corseco_captive_portal/components/templates/assets/"})
         ]
         Application.__init__(self, handlers)
 
