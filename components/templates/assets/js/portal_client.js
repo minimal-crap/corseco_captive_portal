@@ -1,4 +1,4 @@
-var domain = "localhost";
+var domain = "192.168.42.1";
 var port = 8000;
 var web_socket_url = "ws://" + domain + ":" + port.toString() + "/client_push_server/";
 var sms_api_url = "http://" + domain + ":" + port.toString() +"/send_sms/";
@@ -48,7 +48,7 @@ $(document).ready(function(){
                         var sms_api_post_data = {
                             "number": "+91" + $("#number-input").val()
                         };
-                        sms_api_ajax_param["data"] = sms_api_post_data;
+                        sms_api_ajax_param["data"] = JSON.stringify(sms_api_post_data);
                         // make ajax call to sms api
                         $.ajax(sms_api_ajax_param).done(function(){
                             $("#input-area").empty();
@@ -86,8 +86,8 @@ $(document).ready(function(){
                             });
                             $(otp_label_element).text("ENTER THE OTP");
 
-                            $("#user-area").append(otp_label_element);
-                            $("#user-area").append(otp_form_element);
+                            $("#input-area").append(otp_label_element);
+                            $("#input-area").append(otp_form_element);
                         });
                     });
                 }

@@ -19,7 +19,7 @@ secret_key_db_handler_instance = db_handler.DBHandler()
 otp_db_handler_instance = db_handler.DBHandler(table_name="client_otp", column_name="otp")
 
 active_clients = list()
-host = "localhost"
+host = "192.168.42.1"
 port = 8000
 
 
