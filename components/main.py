@@ -74,16 +74,12 @@ def send_input_hook_to_client(client):
 
 def send_to_clients(message):
     print("active clients: {}".format(len(active_clients)))
-    error_message = {"error": "You are in queue, please wait for another person to finish."}
     for client in active_clients:
         try:
             current_key = client.request.headers.get("Sec-Websocket-Key")
             client_key = secret_key_db_handler_instance.get_client_data()
             if current_key == client_key:
                 client.write_message(message)
-            else:
-                client.write_message(json.dumps(error_message))
-            print(client.request.headers.get("Sec-Websocket-Key"))
 
         except Exception as err:
             print("websocket err: {}".format(err.message))
@@ -123,10 +119,11 @@ class SMSHandler(RequestHandler):
                 client = TwilioRestClient(account_sid, account_token)
 
                 message = client.messages.create(
-                    body="Your OTP for 7UP Wi-Fi is {}".format(str(current_otp)),  # Message body, if any
+                    body="Your OTP for 7UP Wi-Fi is {}".format(str(current_otp)),
                     to=destination_number,
                     from_=from_a,
                 )
+                print(message)
             except Exception as err:
                 print("SMSHandler::post: {}".format(err.message))
 
@@ -148,12 +145,13 @@ class ClientSocketHandler(WebSocketHandler):
             active_clients.append(self)
             message = dict()
             if secret_key_db_handler_instance.get_client_data() is None:
-                secret_key_db_handler_instance.set_client_data(self.request.headers.get("Sec-Websocket-Key"))
+                secret_key_db_handler_instance.set_client_data(
+                    self.request.headers.get("Sec-Websocket-Key"))
                 message["success"] = "please scan the 7up bar code at counter"
                 send_to_clients(json.dumps(message))
             else:
                 message["error"] = "You are in queue, sorry for inconvenience."
-                send_to_clients(json.dumps(message))
+                self.write_message(json.dumps(message))
 
     def on_message(self, message):
         self.write_message(json.loads(message))
