@@ -17,6 +17,8 @@ secret_key_db_handler_instance = db_handler.DBHandler()
 otp_db_handler_instance = db_handler.DBHandler(table_name="client_otp", column_name="otp")
 
 active_clients = list()
+host = "localhost"
+port = 8000
 
 
 def whitelist_ip(ip_address):
@@ -51,7 +53,9 @@ class ClientIPHandler(RequestHandler):
             whitelist_ip(self.request.remote_ip)
             otp_db_handler_instance.delete_client_data()
             secret_key_db_handler_instance.delete_client_data()
-            self.redirect("https://www.google.co.in")
+            self.redirect("http://{}:{}/success/".format(host, port))
+        else:
+            self.redirect("http://{}:{}/error/".format(host, port))
 
 
 def send_input_hook_to_client(client):
@@ -91,6 +95,16 @@ class PortalIndex(RequestHandler):
         self.render("./templates/home.html")
 
 
+class OTPSucessHandler(RequestHandler):
+    def get(self):
+        self.render("./templates/success.html")
+
+
+class OTPMismatchHandler(RequestHandler):
+    def get(self):
+        self.render("./templates/error.html")
+
+
 class SMSHandler(RequestHandler):
     """SMSHandler class for sms endpoint."""
 
@@ -123,7 +137,6 @@ class SMSHandler(RequestHandler):
                     to=destination_number,
                     from_=from_a,
                 )
-                print(message)
             except Exception as err:
                 print("SMSHandler::post: {}".format(err.message))
 
@@ -195,6 +208,8 @@ class MainApplication(Application):
             (r"/client_input_hook_push_server/", ClientNumberInputHookHandler),
             (r"/send_sms/", SMSHandler),
             (r"/allow_internet/", ClientIPHandler),
+            (r"/success/", OTPSucessHandler),
+            (r"/error/", OTPMismatchHandler),
             (r"/static/(.*)", StaticFileHandler,
              {"path": os.path.join(os.curdir,
                                    "templates",
@@ -205,9 +220,8 @@ class MainApplication(Application):
 
 def main():
     app_instance = MainApplication()
-    port = 8000
     print("[*]starting app at {}".format(port))
-    app_instance.listen(port)
+    app_instance.listen(port, address=host)
     IOLoop.instance().start()
 
 
