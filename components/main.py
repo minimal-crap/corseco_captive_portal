@@ -1,5 +1,7 @@
 import os
 import json
+import time
+import datetime
 import random
 import subprocess
 import socket
@@ -25,8 +27,12 @@ def whitelist_ip(ip_address):
     """Method to whitelist ip address."""
     try:
         if socket.inet_aton(ip_address):
-            command = "ipset del blacklist {}".format(ip_address)
-            subprocess.call(command.split())
+            timestamp = time.mktime(
+                datetime.datetime.now().timetuple()
+            )
+            if otp_db_handler_instance.whitelist_entry_db(ip_address, timestamp):
+                command = "ipset del blacklist {}".format(ip_address)
+                subprocess.call(command.split())
     except Exception as err:
         print(err)
 
