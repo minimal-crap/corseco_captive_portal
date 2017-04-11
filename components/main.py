@@ -217,9 +217,7 @@ class MainApplication(Application):
             (r"/success/", OTPSucessHandler),
             (r"/error/", OTPMismatchHandler),
             (r"/static/(.*)", StaticFileHandler,
-             {"path": os.path.join(os.curdir,
-                                   "templates",
-                                   "assets")})
+             {"path": "/home/pi/corseco_captive_portal/components/templates/assets/"})
         ]
         Application.__init__(self, handlers)
 

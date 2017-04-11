@@ -20,11 +20,11 @@ def blacklist_ips(connection_handler=None):
         cursor = connection_handler.execute("select * from whitelist")
         for row in cursor:
             whitelist_datetime = datetime.datetime.fromtimestamp(float(row[1]))
-            minutes = (whitelist_datetime - datetime.datetime.now()).seconds / 3600
+            minutes = (datetime.datetime.now() - whitelist_datetime).seconds / 60
             print minutes
-            if minutes >= 15:
+            if minutes >= 2:
                 blacklist_ip(row[0])
-                connection_handler.execute("delete from whitelist where ip='{}'".format(row[1]))
+                connection_handler.execute("delete from whitelist where ip='{}'".format(row[0]))
                 connection_handler.commit()
     except Exception as err:
         print(err)
@@ -32,7 +32,7 @@ def blacklist_ips(connection_handler=None):
 
 def main():
     try:
-        conn = sqlite3.connect(os.path.join(os.path.abspath(os.curdir), "socket_client.db"))
+        conn = sqlite3.connect("/home/pi/corseco_captive_portal/components/socket_client.db")
         blacklist_ips(conn)
 
     except Exception as err:
