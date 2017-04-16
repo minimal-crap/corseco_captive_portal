@@ -27,6 +27,14 @@ class DBHandler:
         except Exception as err:
             print(err.message)
 
+    def get_whitelist_ip_count(self):
+        try:
+            query = "select count(*) from whitelist"
+            return int(self.connection_instance.execute(query).fetchone()[0])
+        except Exception as err:
+            print(err.message)
+
+
     def get_client_data(self):
         try:
             row_count = self.get_table_row_count()
@@ -46,8 +54,8 @@ class DBHandler:
         try:
             if row_count == 0:
                 query = "insert into {}({}) values('{}')".format(self.table_name,
-                                                               self.column_name,
-                                                               secret_key)
+                                                                 self.column_name,
+                                                                 secret_key)
                 cursor = self.connection_instance.execute(query)
                 if cursor.rowcount == 1:
                     self.connection_instance.commit()
@@ -66,3 +74,20 @@ class DBHandler:
             return True
         except Exception as err:
             print(err.message)
+
+    def whitelist_entry_db(self, ipaddress=None, timestamp=None):
+        try:
+            if ipaddress is not None and timestamp is not None:
+                insert_query = "insert into whitelist(ip, timestamp) values('{}', {})".format(
+                    ipaddress,
+                    timestamp
+                )
+                if self.get_whitelist_ip_count() == 0:
+                    self.connection_instance.execute(insert_query)
+                    self.connection_instance.commit()
+                    return True
+                else:
+                    return False
+        except Exception as err:
+            print(err)
+            return False

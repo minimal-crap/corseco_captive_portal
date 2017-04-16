@@ -1,5 +1,7 @@
 import os
 import json
+import time
+import datetime
 import random
 import subprocess
 import socket
@@ -17,14 +19,22 @@ secret_key_db_handler_instance = db_handler.DBHandler()
 otp_db_handler_instance = db_handler.DBHandler(table_name="client_otp", column_name="otp")
 
 active_clients = list()
+host = "192.168.42.1"
+port = 8000
 
 
 def whitelist_ip(ip_address):
     """Method to whitelist ip address."""
     try:
         if socket.inet_aton(ip_address):
-            command = "ipset del blacklist {}".format(ip_address)
-            subprocess.call(command.split())
+            timestamp = time.mktime(
+                datetime.datetime.now().timetuple()
+            )
+            if otp_db_handler_instance.whitelist_entry_db(ip_address, timestamp):
+                command = "sudo iptables -t nat -D PREROUTING -p tcp -s {} --dport 80 -j DNAT --to-destination {}:{}".format(ip_address, host, port)
+                subprocess.call(command.split())
+		command2 = "sudo ipset del blacklist {}".format(ip_address)
+		subprocess.call(command2.split())
     except Exception as err:
         print(err)
 
@@ -33,8 +43,10 @@ def blacklist_ip(ip_address):
     """Method to blacklist ip address."""
     try:
         if socket.inet_aton(ip_address):
-            command = "ipset add blacklist {}".format(ip_address)
+            command = "sudo iptables -t nat -A PREROUTING -p tcp -s {} --dport 80 -j DNAT --to-destination {}:{}".format(ip_address, host, port)
             subprocess.call(command.split())
+            command2 = "sudo ipset add blacklist {}".format(ip_address)
+            subprocess.call(command2.split())
     except Exception as err:
         print(err)
 
@@ -51,7 +63,9 @@ class ClientIPHandler(RequestHandler):
             whitelist_ip(self.request.remote_ip)
             otp_db_handler_instance.delete_client_data()
             secret_key_db_handler_instance.delete_client_data()
-            self.redirect("https://www.google.co.in")
+            self.redirect("http://{}:{}/success/".format(host, port))
+        else:
+            self.redirect("http://{}:{}/error/".format(host, port))
 
 
 def send_input_hook_to_client(client):
@@ -74,16 +88,12 @@ def send_input_hook_to_client(client):
 
 def send_to_clients(message):
     print("active clients: {}".format(len(active_clients)))
-    error_message = {"error": "You are in queue, please wait for another person to finish."}
     for client in active_clients:
         try:
             current_key = client.request.headers.get("Sec-Websocket-Key")
             client_key = secret_key_db_handler_instance.get_client_data()
             if current_key == client_key:
                 client.write_message(message)
-            else:
-                client.write_message(json.dumps(error_message))
-            print(client.request.headers.get("Sec-Websocket-Key"))
 
         except Exception as err:
             print("websocket err: {}".format(err.message))
@@ -92,7 +102,21 @@ def send_to_clients(message):
 
 class PortalIndex(RequestHandler):
     def get(self):
-        self.render("./templates/index.html")
+        self.render("./templates/home.html")
+
+
+class TermsPageHandler(RequestHandler):
+    def get(self):
+        self.render("./templates/terms.html")
+
+class OTPSucessHandler(RequestHandler):
+    def get(self):
+        self.render("./templates/success.html")
+
+
+class OTPMismatchHandler(RequestHandler):
+    def get(self):
+        self.render("./templates/error.html")
 
 
 class SMSHandler(RequestHandler):
@@ -115,15 +139,15 @@ class SMSHandler(RequestHandler):
                 current_otp = random.randint(10000, 99999)
                 otp_db_handler_instance.set_client_data(str(current_otp))
 
-                account_sid = "AC73057e35ada1ca00e93c450d7dbaa9e7"
-                account_token = "e5383c50ad460a4fccae8f2c65da8521"
-                from_a = "+15622392291"
+                account_sid = "AC5ad8bd2722f2b48884947312e7a353ef"
+                account_token = "fc973cb6503f2298177c8cc21015dede"
+                from_a = "+12162202703"
                 destination_number = data["number"]
 
                 client = TwilioRestClient(account_sid, account_token)
 
                 message = client.messages.create(
-                    body="Your OTP for 7UP Wi-Fi is {}".format(str(current_otp)),  # Message body, if any
+                    body="Your OTP for 7UP Wi-Fi is {}".format(str(current_otp)),
                     to=destination_number,
                     from_=from_a,
                 )
@@ -148,12 +172,13 @@ class ClientSocketHandler(WebSocketHandler):
             active_clients.append(self)
             message = dict()
             if secret_key_db_handler_instance.get_client_data() is None:
-                secret_key_db_handler_instance.set_client_data(self.request.headers.get("Sec-Websocket-Key"))
+                secret_key_db_handler_instance.set_client_data(
+                    self.request.headers.get("Sec-Websocket-Key"))
                 message["success"] = "please scan the 7up bar code at counter"
                 send_to_clients(json.dumps(message))
             else:
                 message["error"] = "You are in queue, sorry for inconvenience."
-                send_to_clients(json.dumps(message))
+                self.write_message(json.dumps(message))
 
     def on_message(self, message):
         self.write_message(json.loads(message))
@@ -191,12 +216,15 @@ class ClientNumberInputHookHandler(RequestHandler):
 class MainApplication(Application):
     def __init__(self):
         handlers = [
-            (r"/", PortalIndex),
+            (r"/portal", PortalIndex),
+            (r"/", TermsPageHandler),
             (r"/push_data_to_clients/", ClientPushHandler),
             (r"/client_push_server/", ClientSocketHandler),
             (r"/client_input_hook_push_server/", ClientNumberInputHookHandler),
             (r"/send_sms/", SMSHandler),
             (r"/allow_internet/", ClientIPHandler),
+            (r"/success/", OTPSucessHandler),
+            (r"/error/", OTPMismatchHandler),
             (r"/static/(.*)", StaticFileHandler,
              {"path": "/home/pi/corseco_captive_portal/components/templates/assets/"})
         ]
@@ -205,9 +233,12 @@ class MainApplication(Application):
 
 def main():
     app_instance = MainApplication()
-    port = 8000
+    secret_key_db_handler_instance.delete_client_data()
+    blacklist_command = "sudo sh /home/pi/initiate_blacklist.sh"
+    #subprocess.call(blacklist_command.split())
+    otp_db_handler_instance.delete_client_data()
     print("[*]starting app at {}".format(port))
-    app_instance.listen(port, address="192.168.42.1")
+    app_instance.listen(port, address=host)
     IOLoop.instance().start()
 
 
