@@ -31,8 +31,10 @@ def whitelist_ip(ip_address):
                 datetime.datetime.now().timetuple()
             )
             if otp_db_handler_instance.whitelist_entry_db(ip_address, timestamp):
-                command = "ipset del blacklist {}".format(ip_address)
+                command = "sudo iptables -t nat -D PREROUTING -p tcp -s {} --dport 80 -j DNAT --to-destination {}:{}".format(ip_address, host, port)
                 subprocess.call(command.split())
+		command2 = "sudo ipset del blacklist {}".format(ip_address)
+		subprocess.call(command2.split())
     except Exception as err:
         print(err)
 
@@ -41,8 +43,10 @@ def blacklist_ip(ip_address):
     """Method to blacklist ip address."""
     try:
         if socket.inet_aton(ip_address):
-            command = "ipset add blacklist {}".format(ip_address)
+            command = "sudo iptables -t nat -A PREROUTING -p tcp -s {} --dport 80 -j DNAT --to-destination {}:{}".format(ip_address, host, port)
             subprocess.call(command.split())
+            command2 = "sudo ipset add blacklist {}".format(ip_address)
+            subprocess.call(command2.split())
     except Exception as err:
         print(err)
 
@@ -101,6 +105,10 @@ class PortalIndex(RequestHandler):
         self.render("./templates/home.html")
 
 
+class TermsPageHandler(RequestHandler):
+    def get(self):
+        self.render("./templates/terms.html")
+
 class OTPSucessHandler(RequestHandler):
     def get(self):
         self.render("./templates/success.html")
@@ -131,9 +139,9 @@ class SMSHandler(RequestHandler):
                 current_otp = random.randint(10000, 99999)
                 otp_db_handler_instance.set_client_data(str(current_otp))
 
-                account_sid = "AC73057e35ada1ca00e93c450d7dbaa9e7"
-                account_token = "e5383c50ad460a4fccae8f2c65da8521"
-                from_a = "+15622392291"
+                account_sid = "AC5ad8bd2722f2b48884947312e7a353ef"
+                account_token = "fc973cb6503f2298177c8cc21015dede"
+                from_a = "+12162202703"
                 destination_number = data["number"]
 
                 client = TwilioRestClient(account_sid, account_token)
@@ -208,7 +216,8 @@ class ClientNumberInputHookHandler(RequestHandler):
 class MainApplication(Application):
     def __init__(self):
         handlers = [
-            (r"/", PortalIndex),
+            (r"/portal", PortalIndex),
+            (r"/", TermsPageHandler),
             (r"/push_data_to_clients/", ClientPushHandler),
             (r"/client_push_server/", ClientSocketHandler),
             (r"/client_input_hook_push_server/", ClientNumberInputHookHandler),
@@ -224,6 +233,10 @@ class MainApplication(Application):
 
 def main():
     app_instance = MainApplication()
+    secret_key_db_handler_instance.delete_client_data()
+    blacklist_command = "sudo sh /home/pi/initiate_blacklist.sh"
+    #subprocess.call(blacklist_command.split())
+    otp_db_handler_instance.delete_client_data()
     print("[*]starting app at {}".format(port))
     app_instance.listen(port, address=host)
     IOLoop.instance().start()

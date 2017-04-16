@@ -5,12 +5,17 @@ import datetime
 import sqlite3
 
 
+host = "192.168.42.1"
+port = 8000
+
 def blacklist_ip(ip_address):
     """Method to blacklist ip address."""
     try:
         if socket.inet_aton(ip_address):
-            command = "ipset add blacklist {}".format(ip_address)
+            command = "sudo iptables -t nat -A PREROUTING -p tcp -s {} --dport 80 -j DNAT --to-destination {}:{}".format(ip_address, host, port)
             subprocess.call(command.split())
+            command2 = "sudo ipset add blacklist {}".format(ip_address)
+            subprocess.call(command2.split())
     except Exception as err:
         print(err)
 
@@ -22,7 +27,7 @@ def blacklist_ips(connection_handler=None):
             whitelist_datetime = datetime.datetime.fromtimestamp(float(row[1]))
             minutes = (datetime.datetime.now() - whitelist_datetime).seconds / 60
             print minutes
-            if minutes >= 2:
+            if minutes >= 15:
                 blacklist_ip(row[0])
                 connection_handler.execute("delete from whitelist where ip='{}'".format(row[0]))
                 connection_handler.commit()

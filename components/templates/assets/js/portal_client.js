@@ -2,12 +2,6 @@ var domain = "192.168.42.1";
 var port = 8000;
 var web_socket_url = "ws://" + domain + ":" + port.toString() + "/client_push_server/";
 var sms_api_url = "http://" + domain + ":" + port.toString() +"/send_sms/";
-var sms_api_ajax_param = {
-    type:"POST",
-    url: sms_api_url,
-    data: "",
-    dataType: "text"
-}
 $(document).ready(function(){
     try{
         //create web socket connection to the push server
@@ -44,13 +38,17 @@ $(document).ready(function(){
                     $("#otp-page-container").css("display","block");
 
                     // number input click event handler
-                    $("#number-input-button").click(function(){
-                        var sms_api_post_data = {
-                            "number": "+91" + $("#number-input").val()
-                        };
-                        sms_api_ajax_param["data"] = JSON.stringify(sms_api_post_data);
+                    $("#number-input-button").on('click', function(e){
                         // make ajax call to sms api
-                        $.ajax(sms_api_ajax_param).done(function(){
+			var ajax_data = {"number":"+91" + $("#number-input").val()};
+                    console.log(ajax_data);
+			e.preventDefault();
+                    $.ajax({
+                        type:'POST',
+                        url: sms_api_url,
+                        data: JSON.stringify(ajax_data),
+                        dataType: 'text'
+                    }).done(function(){
                             $("#input-area").empty();
 
                             // create form child elements
