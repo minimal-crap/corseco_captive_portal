@@ -5,6 +5,8 @@ import datetime
 import random
 import subprocess
 import socket
+import base64
+
 
 from tornado.ioloop import IOLoop
 from tornado.websocket import WebSocketHandler
@@ -12,6 +14,7 @@ from tornado.web import RequestHandler
 from tornado.web import Application
 from tornado.web import StaticFileHandler
 from twilio.rest import TwilioRestClient
+import requests as rq
 
 import db_handler
 
@@ -21,6 +24,40 @@ otp_db_handler_instance = db_handler.DBHandler(table_name="client_otp", column_n
 active_clients = list()
 host = "192.168.42.1"
 port = 8000
+GOOGLE_API_KEY = "AIzaSyDwa6GFZkseZqQ_Vv2yvSLBA_nfHVtCgKw"
+GOOGLE_CLOUD_VISION_URL = "https://vision.googleapis.com/v1/images:annotate"
+
+
+def get_image_features(file_path):
+    try:
+        with open(file_path, 'rb') as image_handle:
+            b64_string = base64.b64encode(image_handle.read())
+
+        req_data = {
+            "requests": [
+                {
+                    "image": {
+                        "content": b64_string
+                    },
+                    "features": [
+                        {
+                            "type": "LABEL_DETECTION",
+                            "type": "TEXT_DETECTION",
+                            "maxResults": 1
+                        }
+                    ]
+                }
+            ]
+        }
+
+        r = rq.post("{}?key={}".format(
+            GOOGLE_CLOUD_VISION_URL,
+            GOOGLE_API_KEY),
+            json.dumps(req_data),
+            headers={'content-type': 'application/json'})
+        return json.loads(r.text)
+    except Exception as err:
+        print(err.message)
 
 
 def whitelist_ip(ip_address):
@@ -31,10 +68,11 @@ def whitelist_ip(ip_address):
                 datetime.datetime.now().timetuple()
             )
             if otp_db_handler_instance.whitelist_entry_db(ip_address, timestamp):
-                command = "sudo iptables -t nat -D PREROUTING -p tcp -s {} --dport 80 -j DNAT --to-destination {}:{}".format(ip_address, host, port)
+                command = "sudo iptables -t nat -D PREROUTING -p tcp -s {} --dport 80 -j DNAT --to-destination {}:{}".format(
+                    ip_address, host, port)
                 subprocess.call(command.split())
-		command2 = "sudo ipset del blacklist {}".format(ip_address)
-		subprocess.call(command2.split())
+                command2 = "sudo ipset del blacklist {}".format(ip_address)
+                subprocess.call(command2.split())
     except Exception as err:
         print(err)
 
@@ -43,12 +81,22 @@ def blacklist_ip(ip_address):
     """Method to blacklist ip address."""
     try:
         if socket.inet_aton(ip_address):
-            command = "sudo iptables -t nat -A PREROUTING -p tcp -s {} --dport 80 -j DNAT --to-destination {}:{}".format(ip_address, host, port)
+            command = "sudo iptables -t nat -A PREROUTING -p tcp -s {} --dport 80 -j DNAT --to-destination {}:{}".format(
+                ip_address, host, port)
             subprocess.call(command.split())
             command2 = "sudo ipset add blacklist {}".format(ip_address)
             subprocess.call(command2.split())
     except Exception as err:
         print(err)
+
+
+
+class ImageAPIHandler(RequestHandler):
+    """ImageAPIHandler class to handle image api process requests"""
+    
+    def post(self, *args, **kwargs):
+        """Post method for ImageAPIHandler class."""
+
 
 
 class ClientIPHandler(RequestHandler):
@@ -108,6 +156,7 @@ class PortalIndex(RequestHandler):
 class TermsPageHandler(RequestHandler):
     def get(self):
         self.render("./templates/terms.html")
+
 
 class OTPSucessHandler(RequestHandler):
     def get(self):
@@ -226,7 +275,7 @@ class MainApplication(Application):
             (r"/success/", OTPSucessHandler),
             (r"/error/", OTPMismatchHandler),
             (r"/static/(.*)", StaticFileHandler,
-             {"path": "/home/pi/corseco_captive_portal/components/templates/assets/"})
+             {"path": "/home/sud/minimalcrap/corseco_captive_portal/components/templates/assets/"})
         ]
         Application.__init__(self, handlers)
 
@@ -235,7 +284,7 @@ def main():
     app_instance = MainApplication()
     secret_key_db_handler_instance.delete_client_data()
     blacklist_command = "sudo sh /home/pi/initiate_blacklist.sh"
-    #subprocess.call(blacklist_command.split())
+    # subprocess.call(blacklist_command.split())
     otp_db_handler_instance.delete_client_data()
     print("[*]starting app at {}".format(port))
     app_instance.listen(port, address=host)
